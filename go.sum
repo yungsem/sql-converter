@@ -1,2 +1,5 @@
 github.com/yungsem/gox v1.0.0 h1:SXwAWS8apCGfow0x/F3C/88pgzJFaDSfxqmDK1AeODU=
 github.com/yungsem/gox v1.0.0/go.mod h1:ZKBdNnVQpugD/NmfxBDCpUgIeQbbYFtDRVDrmTzDuf4=
+github.com/yungsem/gox v1.0.2/go.mod h1:ZKBdNnVQpugD/NmfxBDCpUgIeQbbYFtDRVDrmTzDuf4=
+github.com/yungsem/gox v1.0.3 h1:m7BF+77EKuCXXGFVc5utU9A4kF41sdRX6I2LwNtmuYk=
+github.com/yungsem/gox v1.0.3/go.mod h1:ZKBdNnVQpugD/NmfxBDCpUgIeQbbYFtDRVDrmTzDuf4=

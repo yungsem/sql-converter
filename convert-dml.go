@@ -12,11 +12,11 @@ import (
 // 比对两个指定数据库中的表结构，生成相应的 changelog-ddl.xml 文件
 func execDiffChangeLogForDML() {
 	// 执行 liquibase diffChangeLog 命令
-	cmd := exec.Command("liquibase\\liquibase",
+	cmd := exec.Command("liquibase",
 		"--diff-types=data",
-		"--changeLogFile=changelog/changelog-dml.xml",
+		"--changeLogFile="+ChangeLogDir+"changelog-dml.xml",
 		"--defaultsFile=config/liquibase-dml.properties",
-		"--dataOutputDirectory=changelog",
+		"--dataOutputDirectory="+ChangeLogDir,
 		"generate-changelog")
 	out, err := cmd.CombinedOutput()
 	Log.Debug(string(out))
@@ -42,8 +42,8 @@ func execUpdateSqlForDML(dbType string) {
 	}
 
 	// 执行 liquibase updateSql 命令
-	cmd := exec.Command("liquibase\\liquibase",
-		"--changeLogFile=changelog/changelog-dml.xml",
+	cmd := exec.Command("liquibase",
+		"--changeLogFile="+ChangeLogDir+"changelog-dml.xml",
 		confFilePath,
 		"updateSql")
 	out, err := cmd.CombinedOutput()
@@ -53,8 +53,13 @@ func execUpdateSqlForDML(dbType string) {
 		return
 	}
 
-	// 创建临时文件 xxxTemp
-	file, err := filex.OpenFile(dbType + "DMLTemp")
+	// 清空或创建 workdir/temp 目录，存放 .ddl 文件
+	err = filex.ClearOrMakeDir(TempDirDML + dbType)
+	if err != nil {
+		Log.ErrorE(err)
+	}
+
+	file, err := filex.MakeFile(TempDirDML + dbType + "/dml.temp")
 	if err != nil {
 		Log.ErrorE(err)
 		return
@@ -67,26 +72,19 @@ func execUpdateSqlForDML(dbType string) {
 		Log.ErrorE(err)
 		return
 	}
-	Log.DebugF("successfully write %d bytes to %s file", n, dbType+"Temp")
+	Log.DebugF("successfully write %d bytes to %s file", n, TempDirDML+dbType+"/dml.temp")
 }
 
 // resolveDMLFromTempFile 从 xxxTemp 文件中提取 DDL
 func resolveDMLFromTempFile(dbType string) {
-	// 先删除 out 目录
-	outDir := "out/dml/"
-	err := os.RemoveAll(outDir)
+	// 清空或创建 workdir/out 目录，存放 .ddl 文件
+	err := filex.ClearOrMakeDir(OutDirDML + dbType)
 	if err != nil {
 		Log.ErrorE(err)
-	}
-	// 创建 out 目录，用于存放最终的 sql 文件
-	err = os.Mkdir(outDir, 0666)
-	if err != nil {
-		Log.ErrorE(err)
-		return
 	}
 
 	// 创建 xxx.sql 文件
-	sqlFile, err := filex.OpenFile(outDir + dbType + ".sql")
+	sqlFile, err := filex.MakeFile(OutDirDML + dbType + "/" + dbType + ".sql")
 	if err != nil {
 		Log.ErrorE(err)
 		return
@@ -94,20 +92,11 @@ func resolveDMLFromTempFile(dbType string) {
 	defer sqlFile.Close()
 
 	// 打开 xxxTemp 文件，开始提取 DDL
-	tempFile, err := os.Open(dbType + "DMLTemp")
+	tempFile, err := os.Open(TempDirDML + dbType + "/dml.temp")
 	if err != nil {
 		Log.ErrorE(err)
 		return
 	}
-
-	// 提取完成之后删除 xxxTemp 文件
-	defer func() {
-		rErr := os.RemoveAll(dbType + "DMLTemp")
-		if rErr != nil {
-			Log.ErrorE(rErr)
-		}
-	}()
-
 	defer tempFile.Close()
 
 	// 逐行读取文件内容，提取需要的
@@ -137,6 +126,6 @@ func resolveDMLFromTempFile(dbType string) {
 		if wErr != nil {
 			Log.ErrorE(wErr)
 		}
-		Log.DebugF("write %d bytes to %s file", n, dbType+".sql")
+		Log.DebugF("write %d bytes to %s file", n, OutDirDML+dbType+"/"+dbType+".sql")
 	}
 }

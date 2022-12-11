@@ -1,34 +1,38 @@
 package main
 
 import (
+	"github.com/yungsem/gox/filex"
 	"github.com/yungsem/gox/logx"
-	"os"
 	"sync"
 )
 
-var Log = logx.NewStdoutLog(logx.InfoStr)
+// var Log = logx.NewFileLog(logx.DebugStr, "logs")
+var Log = logx.NewStdoutLog(logx.DebugStr)
+
+const (
+	WorkDir      = "workdir"
+	WorkDirDDL   = "workdir/ddl"
+	WorkDirDML   = "workdir/dml"
+	ChangeLogDir = WorkDir + "/changelog/"
+	TempDirDDL   = WorkDirDDL + "/temp/"
+	TempDirDML   = WorkDirDML + "/temp/"
+	OutDirDDL    = WorkDirDDL + "/out/"
+	OutDirDML    = WorkDirDML + "/out/"
+)
 
 func main() {
-	// 创建 changelog 目录，存放 changelog-ddl.cml 文件
-	err := os.Mkdir("changelog", 0666)
+	// 清空或创建 workdir/changelog 目录，存放 changelog-ddl.cml 文件
+	err := filex.ClearOrMakeDir(ChangeLogDir)
 	if err != nil {
 		Log.ErrorE(err)
 	}
 
-	// 方法结束时删除 changelog 目录
-	defer func() {
-		rErr := os.RemoveAll("changelog")
-		if rErr != nil {
-			Log.ErrorE(err)
-		}
-	}()
-
 	// 执行 liquibase diffChangeLog 命令
-	Log.Info("=====>>>start creating changelog-ddl.xml")
+	Log.Info("start creating changelog-ddl.xml")
 	execDiffChangeLogForDDL()
 
 	// 执行 liquibase diffChangeLog 命令
-	Log.Info("=====>>>start creating changelog-dml.xml")
+	Log.Info("start creating changelog-dml.xml")
 	execDiffChangeLogForDML()
 
 	dbTypes := []string{
@@ -43,10 +47,10 @@ func main() {
 		wg.Add(1)
 		go func(dbType string) {
 			defer wg.Done()
-			Log.InfoF("=====>>>generate sql(ddl) for %s", dbType)
-			execUpdateSql(dbType)
+			Log.InfoF("generate sql(ddl) for %s", dbType)
+			execUpdateSqlForDDL(dbType)
 
-			Log.InfoF("=====>>>resolve ddl for %s", dbType)
+			Log.InfoF("resolve ddl for %s", dbType)
 			resolveDDLFromTempFile(dbType)
 		}(dbType)
 
@@ -54,11 +58,11 @@ func main() {
 		wg.Add(1)
 		go func(dbType string) {
 			defer wg.Done()
-			Log.InfoF("=====>>>generate sql(dml) for %s", dbTypeMysql)
-			execUpdateSqlForDML(dbTypeMysql)
+			Log.InfoF("generate sql(dml) for %s", dbType)
+			execUpdateSqlForDML(dbType)
 
-			Log.InfoF("=====>>>resolve dml for %s", dbTypeMysql)
-			resolveDMLFromTempFile(dbTypeMysql)
+			Log.InfoF("resolve dml for %s", dbType)
+			resolveDMLFromTempFile(dbType)
 		}(dbType)
 	}
 
